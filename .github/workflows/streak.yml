@@ -1,0 +1,52 @@
+name: Streak Reminder
+
+on:
+  schedule:
+    - cron: '0 20 * * *'  # 8 PM UTC daily
+  workflow_dispatch:
+
+jobs:
+  check-streak:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for today's commits
+        id: check
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          COMMITS=$(git log --since="$TODAY 00:00:00" --until="$TODAY 23:59:59" --oneline 2>/dev/null | wc -l || echo "0")
+          echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+          echo "Today ($TODAY): $COMMITS commits"
+
+      - name: Create reminder issue
+        if: steps.check.outputs.commits == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Check if issue already exists for today
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'streak-reminder',
+              state: 'open'
+            });
+            
+            const todayIssue = issues.data.find(i => i.title.includes(today));
+            if (todayIssue) {
+              console.log('Issue already exists for today');
+              return;
+            }
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔥 Streak Alert: No commits on ${today}`,
+              body: `You haven't committed to this repo today!\n\n**Keep your streak alive!**\n\n---\n_This issue was automatically created by the streak reminder workflow._`,
+              labels: ['streak-reminder']
+            });

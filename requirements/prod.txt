@@ -1,0 +1,7 @@
+-r base.txt
+
+# Production server
+daphne>=4.1,<5.0
+
+# Logging
+sentry-sdk>=1.40,<2.0
