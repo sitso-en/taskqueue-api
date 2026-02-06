@@ -111,6 +111,9 @@ Connect to `ws://localhost:8000/ws/tasks/{task_id}/` to receive real-time update
 | `sleep` | Simulates long-running task | `{"duration": 10}` |
 | `http_request` | Makes HTTP request | `{"url": "https://..."}` |
 | `process_data` | Processes data arrays | `{"data": [...], "operation": "transform\|filter\|aggregate"}` |
+| `send_email` | Sends an email (simulated) | `{"to": "user@example.com", "subject": "Hello", "body": "..."}` |
+| `resize_image` | Resizes an image (simulated) | `{"image_url": "https://...", "width": 800, "height": 600, "format": "jpeg"}` |
+| `generate_report` | Generates a report (simulated) | `{"report_type": "summary\|detailed\|analytics\|financial", "output_format": "json\|csv\|pdf\|xlsx"}` |
 
 ## Example Usage
 

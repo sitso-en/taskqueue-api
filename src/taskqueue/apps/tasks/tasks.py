@@ -105,6 +105,9 @@ def route_task(task: Task) -> dict:
         "sleep": handle_sleep_task,
         "http_request": handle_http_request_task,
         "process_data": handle_process_data_task,
+        "send_email": handle_send_email_task,
+        "resize_image": handle_resize_image_task,
+        "generate_report": handle_generate_report_task,
     }
 
     handler = handlers.get(task.task_type)
@@ -188,3 +191,111 @@ def handle_process_data_task(payload: dict) -> dict:
         processed = data
 
     return {"processed": processed, "count": len(data)}
+
+
+def handle_send_email_task(payload: dict) -> dict:
+    """
+    Simulate sending an email.
+    
+    In production, integrate with SMTP, SendGrid, Mailgun, etc.
+    """
+    to = payload.get("to")
+    subject = payload.get("subject", "No Subject")
+    body = payload.get("body", "")
+    
+    if not to:
+        raise ValueError("'to' email address is required")
+    
+    # Validate email format (basic check)
+    if "@" not in to or "." not in to:
+        raise ValueError(f"Invalid email address: {to}")
+    
+    # Simulate sending delay
+    time.sleep(0.5)
+    
+    # In production, this would call your email service
+    # Example: sendgrid.send(to=to, subject=subject, body=body)
+    
+    return {
+        "status": "sent",
+        "to": to,
+        "subject": subject,
+        "body_length": len(body),
+        "sent_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
+def handle_resize_image_task(payload: dict) -> dict:
+    """
+    Simulate image resizing.
+    
+    In production, use Pillow or similar library.
+    """
+    image_url = payload.get("image_url")
+    width = payload.get("width")
+    height = payload.get("height")
+    format = payload.get("format", "jpeg")
+    
+    if not image_url:
+        raise ValueError("'image_url' is required")
+    
+    if not width and not height:
+        raise ValueError("At least 'width' or 'height' must be specified")
+    
+    valid_formats = ["jpeg", "png", "webp", "gif"]
+    if format not in valid_formats:
+        raise ValueError(f"Invalid format. Must be one of: {', '.join(valid_formats)}")
+    
+    # Simulate processing time
+    time.sleep(1)
+    
+    # In production, this would:
+    # 1. Download the image
+    # 2. Resize using Pillow
+    # 3. Upload to storage (S3, etc.)
+    # 4. Return the new URL
+    
+    return {
+        "status": "resized",
+        "original_url": image_url,
+        "new_dimensions": {"width": width, "height": height},
+        "format": format,
+        "output_url": f"https://cdn.example.com/resized/{width}x{height}.{format}",
+    }
+
+
+def handle_generate_report_task(payload: dict) -> dict:
+    """
+    Simulate report generation.
+    
+    In production, query databases, generate PDFs, etc.
+    """
+    report_type = payload.get("report_type", "summary")
+    date_range = payload.get("date_range", {})
+    filters = payload.get("filters", {})
+    output_format = payload.get("output_format", "json")
+    
+    valid_types = ["summary", "detailed", "analytics", "financial"]
+    if report_type not in valid_types:
+        raise ValueError(f"Invalid report_type. Must be one of: {', '.join(valid_types)}")
+    
+    valid_formats = ["json", "csv", "pdf", "xlsx"]
+    if output_format not in valid_formats:
+        raise ValueError(f"Invalid output_format. Must be one of: {', '.join(valid_formats)}")
+    
+    # Simulate report generation time
+    time.sleep(2)
+    
+    # In production, this would query your data sources and generate the report
+    report_id = f"RPT-{int(time.time())}"
+    
+    return {
+        "status": "generated",
+        "report_id": report_id,
+        "report_type": report_type,
+        "output_format": output_format,
+        "date_range": date_range,
+        "filters_applied": filters,
+        "download_url": f"https://reports.example.com/{report_id}.{output_format}",
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }

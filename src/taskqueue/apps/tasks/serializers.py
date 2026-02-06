@@ -71,7 +71,16 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
     def validate_task_type(self, value):
         """Validate task type is supported."""
-        valid_types = ["echo", "compute", "sleep", "http_request", "process_data"]
+        valid_types = [
+            "echo",
+            "compute", 
+            "sleep",
+            "http_request",
+            "process_data",
+            "send_email",
+            "resize_image",
+            "generate_report",
+        ]
         if value not in valid_types:
             raise serializers.ValidationError(
                 f"Invalid task type. Must be one of: {', '.join(valid_types)}"
