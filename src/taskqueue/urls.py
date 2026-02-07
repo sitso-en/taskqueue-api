@@ -7,6 +7,7 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/v1/auth/", include("taskqueue.apps.core.urls")),
     path("api/v1/", include("taskqueue.apps.tasks.urls")),
     path("", include("django_prometheus.urls")),
 ]
