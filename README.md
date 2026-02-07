@@ -6,6 +6,7 @@ A production-grade distributed task queue system built with Django REST Framewor
 
 ## Features
 
+- **JWT Authentication** - Secure API access with token-based auth
 - **Async Task Processing** - Celery + Redis for reliable background job execution
 - **Real-time Updates** - WebSocket support for live task status
 - **Rate Limiting** - Built-in request throttling
@@ -79,6 +80,19 @@ make celery
 
 ## API Endpoints
 
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register/` | Register a new user |
+| POST | `/api/v1/auth/token/` | Login and get JWT tokens |
+| POST | `/api/v1/auth/token/refresh/` | Refresh access token |
+| POST | `/api/v1/auth/token/verify/` | Verify a token |
+| POST | `/api/v1/auth/logout/` | Logout (blacklist refresh token) |
+| GET | `/api/v1/auth/profile/` | Get current user profile |
+| PATCH | `/api/v1/auth/profile/` | Update current user profile |
+| POST | `/api/v1/auth/change-password/` | Change password |
+
 ### Tasks
 
 | Method | Endpoint | Description |
@@ -117,11 +131,36 @@ Connect to `ws://localhost:8000/ws/tasks/{task_id}/` to receive real-time update
 
 ## Example Usage
 
-### Create a Task
+### Register a User
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "myuser",
+    "email": "myuser@example.com",
+    "password": "securepassword123",
+    "password_confirm": "securepassword123"
+  }'
+```
+
+### Login and Get Token
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/token/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "myuser",
+    "password": "securepassword123"
+  }'
+```
+
+### Create a Task (with Auth)
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/tasks/ \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your_access_token>" \
   -d '{
     "name": "My Computation",
     "task_type": "compute",
@@ -136,13 +175,15 @@ curl -X POST http://localhost:8000/api/v1/tasks/ \
 ### Check Task Status
 
 ```bash
-curl http://localhost:8000/api/v1/tasks/{task_id}/
+curl http://localhost:8000/api/v1/tasks/{task_id}/ \
+  -H "Authorization: Bearer <your_access_token>"
 ```
 
 ### Get Statistics
 
 ```bash
-curl http://localhost:8000/api/v1/tasks/stats/
+curl http://localhost:8000/api/v1/tasks/stats/ \
+  -H "Authorization: Bearer <your_access_token>"
 ```
 
 ## Monitoring
