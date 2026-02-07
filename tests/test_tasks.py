@@ -1,16 +1,34 @@
 """Tests for Task API."""
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from taskqueue.apps.tasks.models import Task, TaskStatus
 
+User = get_user_model()
+
 
 @pytest.fixture
 def api_client():
     return APIClient()
+
+
+@pytest.fixture
+def user():
+    return User.objects.create_user(
+        username="testuser",
+        email="test@example.com",
+        password="testpass123",
+    )
+
+
+@pytest.fixture
+def authenticated_client(api_client, user):
+    api_client.force_authenticate(user=user)
+    return api_client
 
 
 @pytest.fixture
@@ -27,18 +45,18 @@ def sample_task():
 class TestTaskAPI:
     """Test cases for Task API endpoints."""
 
-    def test_list_tasks(self, api_client):
+    def test_list_tasks(self, authenticated_client):
         """Test listing tasks."""
         Task.objects.create(name="Task 1", task_type="echo")
         Task.objects.create(name="Task 2", task_type="compute")
 
         url = reverse("task-list")
-        response = api_client.get(url)
+        response = authenticated_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
-    def test_create_task(self, api_client):
+    def test_create_task(self, authenticated_client):
         """Test creating a task."""
         url = reverse("task-list")
         data = {
@@ -47,13 +65,13 @@ class TestTaskAPI:
             "payload": {"test": "data"},
         }
 
-        response = api_client.post(url, data, format="json")
+        response = authenticated_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["name"] == "New Task"
         assert response.data["status"] == TaskStatus.QUEUED
 
-    def test_create_task_invalid_type(self, api_client):
+    def test_create_task_invalid_type(self, authenticated_client):
         """Test creating task with invalid type fails."""
         url = reverse("task-list")
         data = {
@@ -61,47 +79,47 @@ class TestTaskAPI:
             "task_type": "invalid_type",
         }
 
-        response = api_client.post(url, data, format="json")
+        response = authenticated_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_get_task_detail(self, api_client, sample_task):
+    def test_get_task_detail(self, authenticated_client, sample_task):
         """Test getting task details."""
         url = reverse("task-detail", kwargs={"pk": sample_task.id})
-        response = api_client.get(url)
+        response = authenticated_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["name"] == "Test Task"
 
-    def test_cancel_task(self, api_client, sample_task):
+    def test_cancel_task(self, authenticated_client, sample_task):
         """Test cancelling a task."""
         sample_task.status = TaskStatus.QUEUED
         sample_task.save()
 
         url = reverse("task-cancel", kwargs={"pk": sample_task.id})
-        response = api_client.post(url)
+        response = authenticated_client.post(url)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["status"] == TaskStatus.REVOKED
 
-    def test_cancel_completed_task_fails(self, api_client, sample_task):
+    def test_cancel_completed_task_fails(self, authenticated_client, sample_task):
         """Test that cancelling a completed task fails."""
         sample_task.status = TaskStatus.SUCCESS
         sample_task.save()
 
         url = reverse("task-cancel", kwargs={"pk": sample_task.id})
-        response = api_client.post(url)
+        response = authenticated_client.post(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_get_stats(self, api_client):
+    def test_get_stats(self, authenticated_client):
         """Test getting task statistics."""
         Task.objects.create(name="T1", task_type="echo", status=TaskStatus.SUCCESS)
         Task.objects.create(name="T2", task_type="echo", status=TaskStatus.FAILURE)
         Task.objects.create(name="T3", task_type="echo", status=TaskStatus.PENDING)
 
         url = reverse("task-stats")
-        response = api_client.get(url)
+        response = authenticated_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["total"] == 3
@@ -109,17 +127,24 @@ class TestTaskAPI:
         assert response.data["failure"] == 1
         assert response.data["pending"] == 1
 
-    def test_filter_by_status(self, api_client):
+    def test_filter_by_status(self, authenticated_client):
         """Test filtering tasks by status."""
         Task.objects.create(name="T1", task_type="echo", status=TaskStatus.SUCCESS)
         Task.objects.create(name="T2", task_type="echo", status=TaskStatus.FAILURE)
 
         url = reverse("task-list")
-        response = api_client.get(url, {"status": TaskStatus.SUCCESS})
+        response = authenticated_client.get(url, {"status": TaskStatus.SUCCESS})
 
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["status"] == TaskStatus.SUCCESS
+
+    def test_unauthenticated_access_denied(self, api_client):
+        """Test that unauthenticated requests are denied."""
+        url = reverse("task-list")
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
