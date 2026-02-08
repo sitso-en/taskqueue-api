@@ -170,6 +170,17 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_RESULT_EXTENDED = True
 
+# Named queues for priority-based routing
+from kombu import Queue
+
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_QUEUES = (
+    Queue("critical"),
+    Queue("high"),
+    Queue("default"),
+    Queue("low"),
+)
+
 
 # Rate Limiting
 RATE_LIMIT_PER_MINUTE = config("RATE_LIMIT_PER_MINUTE", default=60, cast=int)
