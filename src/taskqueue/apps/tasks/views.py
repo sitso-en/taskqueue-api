@@ -14,6 +14,7 @@ from .serializers import (
     TaskSerializer,
     TaskStatsSerializer,
 )
+from .queue_routing import get_queue_for_priority
 from .tasks import execute_task
 
 
@@ -43,16 +44,20 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.status = TaskStatus.QUEUED
         task.save(update_fields=["status"])
 
+        queue = get_queue_for_priority(task.priority)
+
         # Schedule based on scheduled_at or execute immediately
         if task.scheduled_at and task.scheduled_at > timezone.now():
             execute_task.apply_async(
                 args=[str(task.id)],
                 eta=task.scheduled_at,
+                queue=queue,
                 priority=task.priority,
             )
         else:
             execute_task.apply_async(
                 args=[str(task.id)],
+                queue=queue,
                 priority=task.priority,
             )
 
@@ -99,7 +104,11 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.save()
 
         # Re-queue
-        execute_task.apply_async(args=[str(task.id)], priority=task.priority)
+        execute_task.apply_async(
+            args=[str(task.id)],
+            queue=get_queue_for_priority(task.priority),
+            priority=task.priority,
+        )
 
         serializer = TaskSerializer(task)
         return Response(serializer.data)
@@ -159,7 +168,11 @@ class DeadLetterQueueViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         # Queue for execution
-        execute_task.apply_async(args=[str(task.id)])
+        execute_task.apply_async(
+            args=[str(task.id)],
+            queue=get_queue_for_priority(task.priority),
+            priority=task.priority,
+        )
 
         # Mark as reprocessed
         dlq_entry.reprocessed = True
