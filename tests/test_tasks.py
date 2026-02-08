@@ -55,6 +55,7 @@ class TestTaskAPI:
 
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
+        assert "queue" in response.data["results"][0]
 
     def test_create_task(self, authenticated_client):
         """Test creating a task."""
@@ -70,6 +71,7 @@ class TestTaskAPI:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["name"] == "New Task"
         assert response.data["status"] == TaskStatus.QUEUED
+        assert "queue" in response.data
 
     def test_create_task_invalid_type(self, authenticated_client):
         """Test creating task with invalid type fails."""
