@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from .models import DeadLetterQueue, Task, TaskPriority, TaskStatus
+from .queue_routing import get_queue_for_priority
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -11,6 +12,7 @@ class TaskSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     priority_display = serializers.CharField(source="get_priority_display", read_only=True)
     duration = serializers.FloatField(read_only=True)
+    queue = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -23,6 +25,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "status_display",
             "priority",
             "priority_display",
+            "queue",
             "celery_task_id",
             "max_retries",
             "retry_count",
@@ -40,6 +43,7 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "queue",
             "celery_task_id",
             "retry_count",
             "created_at",
@@ -50,6 +54,10 @@ class TaskSerializer(serializers.ModelSerializer):
             "error_message",
             "duration",
         ]
+
+
+    def get_queue(self, obj):
+        return get_queue_for_priority(obj.priority)
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
@@ -93,6 +101,7 @@ class TaskListSerializer(serializers.ModelSerializer):
 
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     duration = serializers.FloatField(read_only=True)
+    queue = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -103,10 +112,14 @@ class TaskListSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "priority",
+            "queue",
             "created_at",
             "completed_at",
             "duration",
         ]
+
+    def get_queue(self, obj):
+        return get_queue_for_priority(obj.priority)
 
 
 class DeadLetterQueueSerializer(serializers.ModelSerializer):
