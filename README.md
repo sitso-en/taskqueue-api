@@ -11,7 +11,7 @@ A production-grade distributed task queue system built with Django REST Framewor
 - **Real-time Updates** - WebSocket support for live task status
 - **Rate Limiting** - Built-in request throttling
 - **Dead Letter Queue** - Failed tasks are preserved for debugging and reprocessing
-- **Priority Queues** - Tasks can be prioritized (Low, Normal, High, Critical)
+- **Priority Queues** - Tasks can be prioritized (Low, Normal, High, Critical) and are routed to dedicated Celery queues (`low`, `default`, `high`, `critical`)
 - **Scheduled Tasks** - Schedule tasks for future execution
 - **Retry Logic** - Configurable retry with exponential backoff
 - **Admin Dashboard** - Full Django admin integration
