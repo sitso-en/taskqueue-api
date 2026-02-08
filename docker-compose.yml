@@ -42,7 +42,7 @@ services:
 
   celery:
     build: .
-    command: celery -A taskqueue worker -l info -Q celery
+    command: celery -A taskqueue worker -l info -Q critical,high,default,low
     volumes:
       - ./src:/app/src
     env_file:
