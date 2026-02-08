@@ -92,6 +92,7 @@ class TaskAdmin(admin.ModelAdmin):
     @admin.action(description="Retry failed tasks")
     def retry_tasks(self, request, queryset):
         """Retry failed tasks."""
+        from .queue_routing import get_queue_for_priority
         from .tasks import execute_task
 
         retried = 0
@@ -102,7 +103,11 @@ class TaskAdmin(admin.ModelAdmin):
             task.started_at = None
             task.completed_at = None
             task.save()
-            execute_task.apply_async(args=[str(task.id)])
+            execute_task.apply_async(
+                args=[str(task.id)],
+                queue=get_queue_for_priority(task.priority),
+                priority=task.priority,
+            )
             retried += 1
 
         self.message_user(request, f"Retried {retried} tasks.")
@@ -141,6 +146,7 @@ class DeadLetterQueueAdmin(admin.ModelAdmin):
     @admin.action(description="Reprocess selected entries")
     def reprocess_entries(self, request, queryset):
         """Reprocess selected dead letter entries."""
+        from .queue_routing import get_queue_for_priority
         from .tasks import execute_task
         from django.utils import timezone
 
@@ -152,7 +158,11 @@ class DeadLetterQueueAdmin(admin.ModelAdmin):
                 payload=entry.payload,
                 status=TaskStatus.QUEUED,
             )
-            execute_task.apply_async(args=[str(task.id)])
+            execute_task.apply_async(
+                args=[str(task.id)],
+                queue=get_queue_for_priority(task.priority),
+                priority=task.priority,
+            )
             entry.reprocessed = True
             entry.reprocessed_at = timezone.now()
             entry.save()
