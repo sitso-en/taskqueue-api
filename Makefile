@@ -61,7 +61,7 @@ docker-logs:
 	docker compose logs -f
 
 celery:
-	cd src && celery -A taskqueue worker -l info
+	cd src && celery -A taskqueue worker -l info -Q critical,high,default,low
 
 celery-beat:
 	cd src && celery -A taskqueue beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
