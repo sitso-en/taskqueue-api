@@ -116,6 +116,49 @@ make celery
 
 Connect to `ws://localhost:8000/ws/tasks/{task_id}/` to receive real-time updates for a specific task.
 
+## Webhooks (Task Callbacks)
+
+You can attach a webhook URL to a task. When the task **succeeds**, **fails**, or is **revoked**, TaskQueue will POST a JSON payload to your callback.
+
+### Configure on task creation
+
+Send these optional fields in `POST /api/v1/tasks/`:
+- `callback_url` (string)
+- `callback_events` (list of strings; defaults to `["task.succeeded", "task.failed", "task.revoked"]` when `callback_url` is provided)
+- `callback_headers` (object of string:string)
+- `callback_secret` (string; used to sign payload)
+- `callback_max_attempts` (int; default 5)
+
+### Security
+
+If `callback_secret` is set, requests include:
+- `X-Taskqueue-Signature`: HMAC-SHA256 hex digest of the raw request body
+
+### Example payload
+
+```json
+{
+  "event": "task.succeeded",
+  "sent_at": "2026-02-08T12:00:00+00:00",
+  "task": {
+    "id": "...",
+    "name": "My Task",
+    "task_type": "compute",
+    "status": "success",
+    "priority": 10,
+    "queue": "high",
+    "payload": {"operation": "sum", "numbers": [1,2,3]},
+    "result": {"operation": "sum", "result": 6},
+    "error_message": "",
+    "created_at": "...",
+    "started_at": "...",
+    "completed_at": "...",
+    "tags": [],
+    "metadata": {}
+  }
+}
+```
+
 ## Task Types
 
 | Type | Description | Payload |
