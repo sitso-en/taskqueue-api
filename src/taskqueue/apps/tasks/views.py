@@ -16,6 +16,7 @@ from .serializers import (
 )
 from .queue_routing import get_queue_for_priority
 from .tasks import execute_task
+from .webhooks import enqueue_webhook
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -81,6 +82,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             app.control.revoke(task.celery_task_id, terminate=True)
 
         task.mark_revoked()
+        enqueue_webhook(task, "task.revoked")
         serializer = TaskSerializer(task)
         return Response(serializer.data)
 
@@ -112,6 +114,22 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         serializer = TaskSerializer(task)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def trigger_webhook(self, request, pk=None):
+        """Manually enqueue a webhook for this task (useful for debugging)."""
+        task = self.get_object()
+        event = request.data.get("event")
+
+        if not event:
+            event = {
+                TaskStatus.SUCCESS: "task.succeeded",
+                TaskStatus.FAILURE: "task.failed",
+                TaskStatus.REVOKED: "task.revoked",
+            }.get(task.status, "task.updated")
+
+        enqueue_webhook(task, event)
+        return Response({"queued": True, "event": event})
 
     @action(detail=False, methods=["get"])
     def stats(self, request):
