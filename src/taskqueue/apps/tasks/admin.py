@@ -80,11 +80,14 @@ class TaskAdmin(admin.ModelAdmin):
         """Cancel selected tasks."""
         from taskqueue.celery import app
 
+        from .webhooks import enqueue_webhook
+
         cancelled = 0
         for task in queryset.filter(status__in=[TaskStatus.PENDING, TaskStatus.QUEUED, TaskStatus.RUNNING]):
             if task.celery_task_id:
                 app.control.revoke(task.celery_task_id, terminate=True)
             task.mark_revoked()
+            enqueue_webhook(task, "task.revoked")
             cancelled += 1
 
         self.message_user(request, f"Cancelled {cancelled} tasks.")
