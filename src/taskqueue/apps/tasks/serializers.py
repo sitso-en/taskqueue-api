@@ -40,6 +40,14 @@ class TaskSerializer(serializers.ModelSerializer):
             "duration",
             "tags",
             "metadata",
+            "callback_url",
+            "callback_events",
+            "callback_status",
+            "callback_attempts",
+            "callback_max_attempts",
+            "callback_last_attempt_at",
+            "callback_last_response_code",
+            "callback_last_error",
         ]
         read_only_fields = [
             "id",
@@ -53,6 +61,14 @@ class TaskSerializer(serializers.ModelSerializer):
             "result",
             "error_message",
             "duration",
+            "callback_url",
+            "callback_events",
+            "callback_status",
+            "callback_attempts",
+            "callback_max_attempts",
+            "callback_last_attempt_at",
+            "callback_last_response_code",
+            "callback_last_error",
         ]
 
 
@@ -62,6 +78,8 @@ class TaskSerializer(serializers.ModelSerializer):
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating tasks."""
+
+    callback_secret = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Task
@@ -75,13 +93,18 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             "scheduled_at",
             "tags",
             "metadata",
+            "callback_url",
+            "callback_headers",
+            "callback_secret",
+            "callback_events",
+            "callback_max_attempts",
         ]
 
     def validate_task_type(self, value):
         """Validate task type is supported."""
         valid_types = [
             "echo",
-            "compute", 
+            "compute",
             "sleep",
             "http_request",
             "process_data",
@@ -94,6 +117,31 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 f"Invalid task type. Must be one of: {', '.join(valid_types)}"
             )
         return value
+
+    def validate_callback_headers(self, value):
+        if value in (None, ""):
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("callback_headers must be a JSON object")
+        for k, v in value.items():
+            if not isinstance(k, str) or not isinstance(v, str):
+                raise serializers.ValidationError("callback_headers must be string:string pairs")
+        return value
+
+    def validate_callback_events(self, value):
+        if value in (None, ""):
+            return []
+        if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
+            raise serializers.ValidationError("callback_events must be a list of strings")
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("callback_url") and not attrs.get("callback_events"):
+            attrs["callback_events"] = ["task.succeeded", "task.failed", "task.revoked"]
+
+        return attrs
 
 
 class TaskListSerializer(serializers.ModelSerializer):
@@ -116,6 +164,9 @@ class TaskListSerializer(serializers.ModelSerializer):
             "created_at",
             "completed_at",
             "duration",
+            "callback_status",
+            "callback_attempts",
+            "callback_last_response_code",
         ]
 
     def get_queue(self, obj):
