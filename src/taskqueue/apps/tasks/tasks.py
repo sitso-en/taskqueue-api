@@ -9,6 +9,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
 from .models import DeadLetterQueue, Task, TaskStatus
+from .webhooks import enqueue_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,8 @@ def execute_task(self, task_id: str):
         
         task.mark_success(result)
         notify_task_update(task)
-        
+        enqueue_webhook(task, "task.succeeded")
+
         logger.info(f"Task {task_id} completed successfully")
         return result
 
@@ -85,6 +87,7 @@ def execute_task(self, task_id: str):
             )
             
             notify_task_update(task)
+            enqueue_webhook(task, "task.failed")
             logger.error(f"Task {task_id} moved to dead letter queue: {exc}")
             return {"error": str(exc), "dead_letter": True}
 
