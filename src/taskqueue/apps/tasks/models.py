@@ -27,6 +27,14 @@ class TaskPriority(models.IntegerChoices):
     CRITICAL = 20, "Critical"
 
 
+class CallbackStatus(models.TextChoices):
+    """Webhook callback delivery status."""
+
+    PENDING = "pending", "Pending"
+    SUCCESS = "success", "Success"
+    FAILURE = "failure", "Failure"
+
+
 class Task(models.Model):
     """Represents a task submitted to the queue."""
 
@@ -69,6 +77,28 @@ class Task(models.Model):
     # Metadata
     tags = models.JSONField(default=list, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
+
+    # Webhooks
+    callback_url = models.URLField(blank=True, null=True)
+    callback_headers = models.JSONField(default=dict, blank=True)
+    callback_secret = models.CharField(max_length=255, blank=True)
+    callback_events = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Events to notify (e.g. task.succeeded, task.failed, task.revoked)",
+    )
+    callback_max_attempts = models.PositiveIntegerField(default=5)
+    callback_attempts = models.PositiveIntegerField(default=0)
+    callback_status = models.CharField(
+        max_length=20,
+        choices=CallbackStatus.choices,
+        default=CallbackStatus.PENDING,
+        db_index=True,
+    )
+    callback_last_attempt_at = models.DateTimeField(null=True, blank=True)
+    callback_last_response_code = models.IntegerField(null=True, blank=True)
+    callback_last_response_body = models.TextField(blank=True)
+    callback_last_error = models.TextField(blank=True)
 
     class Meta:
         ordering = ["-created_at"]
