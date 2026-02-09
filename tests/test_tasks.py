@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from unittest.mock import patch
 
 from taskqueue.apps.tasks.models import Task, TaskStatus
 
@@ -66,7 +67,8 @@ class TestTaskAPI:
             "payload": {"test": "data"},
         }
 
-        response = authenticated_client.post(url, data, format="json")
+        with patch("taskqueue.apps.tasks.views.execute_task.apply_async"):
+            response = authenticated_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["name"] == "New Task"
@@ -96,13 +98,17 @@ class TestTaskAPI:
     def test_cancel_task(self, authenticated_client, sample_task):
         """Test cancelling a task."""
         sample_task.status = TaskStatus.QUEUED
+        sample_task.callback_url = "https://example.com/webhook"
+        sample_task.callback_events = ["task.revoked"]
         sample_task.save()
 
         url = reverse("task-cancel", kwargs={"pk": sample_task.id})
-        response = authenticated_client.post(url)
+        with patch("taskqueue.apps.tasks.views.enqueue_webhook") as enqueue:
+            response = authenticated_client.post(url)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["status"] == TaskStatus.REVOKED
+        enqueue.assert_called_once()
 
     def test_cancel_completed_task_fails(self, authenticated_client, sample_task):
         """Test that cancelling a completed task fails."""
@@ -140,6 +146,19 @@ class TestTaskAPI:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["status"] == TaskStatus.SUCCESS
+
+    def test_trigger_webhook(self, authenticated_client, sample_task):
+        sample_task.callback_url = "https://example.com/webhook"
+        sample_task.callback_events = ["task.updated"]
+        sample_task.save()
+
+        url = reverse("task-trigger-webhook", kwargs={"pk": sample_task.id})
+        with patch("taskqueue.apps.tasks.views.enqueue_webhook") as enqueue:
+            response = authenticated_client.post(url, {"event": "task.updated"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["queued"] is True
+        enqueue.assert_called_once()
 
     def test_unauthenticated_access_denied(self, api_client):
         """Test that unauthenticated requests are denied."""
