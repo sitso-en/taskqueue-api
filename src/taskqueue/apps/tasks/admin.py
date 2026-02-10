@@ -3,7 +3,23 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import DeadLetterQueue, Task, TaskStatus
+from .models import DeadLetterQueue, Task, TaskStatus, WebhookDelivery
+
+
+class WebhookDeliveryInline(admin.TabularInline):
+    model = WebhookDelivery
+    extra = 0
+    can_delete = False
+    fields = [
+        "queued_at",
+        "event",
+        "status",
+        "attempts",
+        "response_status_code",
+        "error_message",
+    ]
+    readonly_fields = fields
+    ordering = ["-queued_at"]
 
 
 @admin.register(Task)
@@ -35,6 +51,8 @@ class TaskAdmin(admin.ModelAdmin):
     ]
     ordering = ["-created_at"]
     date_hierarchy = "created_at"
+
+    inlines = [WebhookDeliveryInline]
 
     fieldsets = (
         ("Task Info", {"fields": ("id", "name", "task_type", "payload", "tags", "metadata")}),
@@ -114,6 +132,39 @@ class TaskAdmin(admin.ModelAdmin):
             retried += 1
 
         self.message_user(request, f"Retried {retried} tasks.")
+
+
+@admin.register(WebhookDelivery)
+class WebhookDeliveryAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "task",
+        "event",
+        "status",
+        "attempts",
+        "queued_at",
+        "response_status_code",
+    ]
+    list_filter = ["status", "event", "queued_at"]
+    search_fields = ["id", "task__id", "task__name", "request_url"]
+    readonly_fields = [
+        "id",
+        "task",
+        "event",
+        "status",
+        "attempts",
+        "request_url",
+        "request_headers",
+        "request_body",
+        "signature",
+        "queued_at",
+        "last_attempt_at",
+        "response_status_code",
+        "response_body",
+        "error_message",
+        "replay_of",
+    ]
+    ordering = ["-queued_at"]
 
 
 @admin.register(DeadLetterQueue)
