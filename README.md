@@ -16,6 +16,7 @@ A production-grade distributed task queue system built with Django REST Framewor
 - **Retry Logic** - Configurable retry with exponential backoff
 - **Admin Dashboard** - Full Django admin integration
 - **Prometheus Metrics** - Built-in monitoring endpoint
+- **Webhook Delivery History** - Persist delivery attempts and allow replay
 
 ## Tech Stack
 
@@ -43,6 +44,7 @@ cp .env.example .env
 docker compose up -d
 
 # Run migrations
+# If you're upgrading from an older setup that ran without migrations, use: --fake-initial
 docker compose exec web python manage.py migrate
 
 # Create superuser
@@ -66,6 +68,7 @@ docker compose up -d db redis
 cp .env.example .env
 
 # Run migrations
+# If you're upgrading from an older setup that ran without migrations, use: python manage.py migrate --fake-initial
 make migrate
 
 # Create superuser
@@ -133,6 +136,16 @@ Send these optional fields in `POST /api/v1/tasks/`:
 
 If `callback_secret` is set, requests include:
 - `X-Taskqueue-Signature`: HMAC-SHA256 hex digest of the raw request body
+
+### Delivery history + replay
+
+Each webhook enqueue creates a `WebhookDelivery` record.
+
+Endpoints:
+- `GET /api/v1/tasks/{task_id}/webhook-deliveries/` (list deliveries)
+- `POST /api/v1/tasks/{task_id}/webhook-deliveries/{delivery_id}/replay/` (replay)
+
+The debug endpoint `POST /api/v1/tasks/{task_id}/trigger_webhook/` returns `delivery_id` when a delivery was enqueued.
 
 ### Example payload
 
