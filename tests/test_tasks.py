@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from taskqueue.apps.tasks.models import Task, TaskStatus
+from taskqueue.apps.tasks.models import Task, TaskStatus, WebhookDelivery
 
 User = get_user_model()
 
@@ -158,7 +158,40 @@ class TestTaskAPI:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["queued"] is True
+        assert response.data["delivery_id"] is None
         enqueue.assert_called_once()
+
+    def test_webhook_deliveries_list_and_replay(self, authenticated_client, sample_task):
+        sample_task.callback_url = "https://example.com/webhook"
+        sample_task.callback_events = ["task.updated"]
+        sample_task.save()
+
+        with patch("taskqueue.apps.tasks.webhook_tasks.deliver_webhook.apply_async"):
+            trigger_url = reverse("task-trigger-webhook", kwargs={"pk": sample_task.id})
+            trigger_resp = authenticated_client.post(trigger_url, {"event": "task.updated"}, format="json")
+
+        assert trigger_resp.status_code == status.HTTP_200_OK
+        delivery_id = trigger_resp.data["delivery_id"]
+        assert delivery_id is not None
+
+        list_url = reverse("task-webhook-deliveries", kwargs={"pk": sample_task.id})
+        list_resp = authenticated_client.get(list_url)
+
+        assert list_resp.status_code == status.HTTP_200_OK
+        assert len(list_resp.data) == 1
+        assert list_resp.data[0]["id"] == delivery_id
+
+        with patch("taskqueue.apps.tasks.webhook_tasks.deliver_webhook.apply_async") as apply_async:
+            replay_url = reverse(
+                "task-replay-webhook-delivery",
+                kwargs={"pk": sample_task.id, "delivery_id": delivery_id},
+            )
+            replay_resp = authenticated_client.post(replay_url)
+
+        assert replay_resp.status_code == status.HTTP_201_CREATED
+        assert replay_resp.data["replay_of"] == delivery_id
+        assert WebhookDelivery.objects.count() == 2
+        apply_async.assert_called_once()
 
     def test_unauthenticated_access_denied(self, api_client):
         """Test that unauthenticated requests are denied."""
