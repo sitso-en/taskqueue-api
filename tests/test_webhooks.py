@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from taskqueue.apps.tasks.models import Task
+from taskqueue.apps.tasks.models import Task, WebhookDelivery
 from taskqueue.apps.tasks.webhooks import build_webhook_payload, compute_signature, enqueue_webhook
 
 
@@ -38,6 +38,10 @@ def test_enqueue_webhook_calls_celery_task():
     )
 
     with patch("taskqueue.apps.tasks.webhook_tasks.deliver_webhook.apply_async") as apply_async:
-        enqueue_webhook(task, "task.succeeded")
+        delivery = enqueue_webhook(task, "task.succeeded")
+
+    assert delivery is not None
+    assert WebhookDelivery.objects.count() == 1
 
     apply_async.assert_called_once()
+    assert apply_async.call_args.kwargs["args"] == [str(delivery.id)]
