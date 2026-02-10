@@ -182,6 +182,18 @@ class TestTaskAPI:
         assert len(list_resp.data) == 1
         assert list_resp.data[0]["id"] == delivery_id
 
+        detail_url = reverse(
+            "task-webhook-delivery-detail",
+            kwargs={"pk": sample_task.id, "delivery_id": delivery_id},
+        )
+        detail_resp = authenticated_client.get(detail_url)
+        assert detail_resp.status_code == status.HTTP_200_OK
+        assert detail_resp.data["id"] == delivery_id
+
+        filtered_resp = authenticated_client.get(list_url, {"event": "task.updated"})
+        assert filtered_resp.status_code == status.HTTP_200_OK
+        assert len(filtered_resp.data) == 1
+
         with patch("taskqueue.apps.tasks.webhook_tasks.deliver_webhook.apply_async") as apply_async:
             replay_url = reverse(
                 "task-replay-webhook-delivery",

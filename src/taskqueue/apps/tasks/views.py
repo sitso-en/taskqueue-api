@@ -137,7 +137,37 @@ class TaskViewSet(viewsets.ModelViewSet):
         """List webhook deliveries for this task."""
         task = self.get_object()
         qs = task.webhook_deliveries.all()
+
+        event = request.query_params.get("event")
+        status_param = request.query_params.get("status")
+        limit = request.query_params.get("limit")
+
+        if event:
+            qs = qs.filter(event=event)
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if limit:
+            try:
+                qs = qs[: int(limit)]
+            except (TypeError, ValueError):
+                pass
+
         return Response(WebhookDeliverySerializer(qs, many=True).data)
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path=r"webhook-deliveries/(?P<delivery_id>[^/.]+)",
+    )
+    def webhook_delivery_detail(self, request, pk=None, delivery_id=None):
+        """Get a single webhook delivery record."""
+        task = self.get_object()
+        try:
+            delivery = task.webhook_deliveries.get(id=delivery_id)
+        except WebhookDelivery.DoesNotExist:
+            return Response({"error": "Delivery not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(WebhookDeliverySerializer(delivery).data)
 
     @action(
         detail=True,
