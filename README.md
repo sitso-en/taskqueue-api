@@ -105,6 +105,10 @@ make celery
 | GET | `/api/v1/tasks/{id}/` | Get task details |
 | POST | `/api/v1/tasks/{id}/cancel/` | Cancel a task |
 | POST | `/api/v1/tasks/{id}/retry/` | Retry a failed task |
+| POST | `/api/v1/tasks/{id}/trigger_webhook/` | Manually enqueue a webhook |
+| GET | `/api/v1/tasks/{id}/webhook-deliveries/` | List webhook deliveries |
+| GET | `/api/v1/tasks/{id}/webhook-deliveries/{delivery_id}/` | Get a delivery record |
+| POST | `/api/v1/tasks/{id}/webhook-deliveries/{delivery_id}/replay/` | Replay a delivery |
 | GET | `/api/v1/tasks/stats/` | Get task statistics |
 
 ### Dead Letter Queue
