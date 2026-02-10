@@ -37,7 +37,7 @@ createsuperuser:
 	cd src && python manage.py createsuperuser
 
 test:
-	cd src && pytest --cov=taskqueue --cov-report=term-missing
+	cd src && pytest ../tests --cov=taskqueue --cov-report=term-missing
 
 lint:
 	ruff check src/
