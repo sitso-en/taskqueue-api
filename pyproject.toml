@@ -39,6 +39,7 @@ known-first-party = ["taskqueue"]
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "taskqueue.settings"
 python_files = ["test_*.py"]
+testpaths = ["tests"]
 addopts = "-v --tb=short"
 
 [tool.mypy]
