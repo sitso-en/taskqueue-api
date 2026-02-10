@@ -35,6 +35,14 @@ class CallbackStatus(models.TextChoices):
     FAILURE = "failure", "Failure"
 
 
+class WebhookDeliveryStatus(models.TextChoices):
+    """Webhook delivery status."""
+
+    PENDING = "pending", "Pending"
+    SUCCESS = "success", "Success"
+    FAILURE = "failure", "Failure"
+
+
 class Task(models.Model):
     """Represents a task submitted to the queue."""
 
@@ -143,6 +151,52 @@ class Task(models.Model):
         self.status = TaskStatus.REVOKED
         self.completed_at = timezone.now()
         self.save(update_fields=["status", "completed_at", "updated_at"])
+
+
+class WebhookDelivery(models.Model):
+    """History record for a single webhook delivery (including replays)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="webhook_deliveries")
+    event = models.CharField(max_length=100, db_index=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=WebhookDeliveryStatus.choices,
+        default=WebhookDeliveryStatus.PENDING,
+        db_index=True,
+    )
+    attempts = models.PositiveIntegerField(default=0)
+
+    request_url = models.URLField()
+    request_headers = models.JSONField(default=dict, blank=True)
+    request_body = models.TextField(blank=True)
+    signature = models.CharField(max_length=128, blank=True)
+
+    queued_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    response_status_code = models.IntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True)
+    error_message = models.TextField(blank=True)
+
+    replay_of = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replays",
+    )
+
+    class Meta:
+        ordering = ["-queued_at"]
+        indexes = [
+            models.Index(fields=["task", "event", "queued_at"]),
+            models.Index(fields=["status", "queued_at"]),
+        ]
+
+    def __str__(self):
+        return f"WebhookDelivery {self.id} ({self.event})"
 
 
 class DeadLetterQueue(models.Model):
