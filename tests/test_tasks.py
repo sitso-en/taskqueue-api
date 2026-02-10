@@ -154,6 +154,7 @@ class TestTaskAPI:
 
         url = reverse("task-trigger-webhook", kwargs={"pk": sample_task.id})
         with patch("taskqueue.apps.tasks.views.enqueue_webhook") as enqueue:
+            enqueue.return_value = None
             response = authenticated_client.post(url, {"event": "task.updated"}, format="json")
 
         assert response.status_code == status.HTTP_200_OK
@@ -189,7 +190,7 @@ class TestTaskAPI:
             replay_resp = authenticated_client.post(replay_url)
 
         assert replay_resp.status_code == status.HTTP_201_CREATED
-        assert replay_resp.data["replay_of"] == delivery_id
+        assert str(replay_resp.data["replay_of"]) == delivery_id
         assert WebhookDelivery.objects.count() == 2
         apply_async.assert_called_once()
 
