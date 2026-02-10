@@ -6,13 +6,14 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import DeadLetterQueue, Task, TaskStatus
+from .models import DeadLetterQueue, Task, TaskStatus, WebhookDelivery
 from .serializers import (
     DeadLetterQueueSerializer,
     TaskCreateSerializer,
     TaskListSerializer,
     TaskSerializer,
     TaskStatsSerializer,
+    WebhookDeliverySerializer,
 )
 from .queue_routing import get_queue_for_priority
 from .tasks import execute_task
@@ -128,8 +129,45 @@ class TaskViewSet(viewsets.ModelViewSet):
                 TaskStatus.REVOKED: "task.revoked",
             }.get(task.status, "task.updated")
 
-        enqueue_webhook(task, event)
-        return Response({"queued": True, "event": event})
+        delivery = enqueue_webhook(task, event)
+        return Response({"queued": True, "event": event, "delivery_id": str(delivery.id) if delivery else None})
+
+    @action(detail=True, methods=["get"], url_path="webhook-deliveries")
+    def webhook_deliveries(self, request, pk=None):
+        """List webhook deliveries for this task."""
+        task = self.get_object()
+        qs = task.webhook_deliveries.all()
+        return Response(WebhookDeliverySerializer(qs, many=True).data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"webhook-deliveries/(?P<delivery_id>[^/.]+)/replay",
+    )
+    def replay_webhook_delivery(self, request, pk=None, delivery_id=None):
+        """Replay a specific webhook delivery."""
+        task = self.get_object()
+
+        try:
+            delivery = task.webhook_deliveries.get(id=delivery_id)
+        except WebhookDelivery.DoesNotExist:
+            return Response({"error": "Delivery not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        replay = WebhookDelivery.objects.create(
+            task=task,
+            event=delivery.event,
+            request_url=delivery.request_url,
+            request_headers=delivery.request_headers,
+            request_body=delivery.request_body,
+            signature=delivery.signature,
+            replay_of=delivery,
+        )
+
+        from .webhook_tasks import deliver_webhook
+
+        deliver_webhook.apply_async(args=[str(replay.id)], queue="low", priority=1)
+
+        return Response(WebhookDeliverySerializer(replay).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"])
     def stats(self, request):
