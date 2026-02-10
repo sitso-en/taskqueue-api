@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import DeadLetterQueue, Task, TaskPriority, TaskStatus
+from .models import DeadLetterQueue, Task, TaskPriority, TaskStatus, WebhookDelivery
 from .queue_routing import get_queue_for_priority
 
 
@@ -192,6 +192,29 @@ class DeadLetterQueueSerializer(serializers.ModelSerializer):
             "reprocessed_at",
         ]
         read_only_fields = ["id", "created_at", "reprocessed_at"]
+
+
+class WebhookDeliverySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebhookDelivery
+        fields = [
+            "id",
+            "task",
+            "event",
+            "status",
+            "attempts",
+            "request_url",
+            "request_headers",
+            "request_body",
+            "signature",
+            "queued_at",
+            "last_attempt_at",
+            "response_status_code",
+            "response_body",
+            "error_message",
+            "replay_of",
+        ]
+        read_only_fields = fields
 
 
 class TaskStatsSerializer(serializers.Serializer):
