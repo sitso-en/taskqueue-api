@@ -194,6 +194,10 @@ class TestTaskAPI:
         assert filtered_resp.status_code == status.HTTP_200_OK
         assert len(filtered_resp.data) == 1
 
+        empty_resp = authenticated_client.get(list_url, {"event": "task.failed"})
+        assert empty_resp.status_code == status.HTTP_200_OK
+        assert len(empty_resp.data) == 0
+
         with patch("taskqueue.apps.tasks.webhook_tasks.deliver_webhook.apply_async") as apply_async:
             replay_url = reverse(
                 "task-replay-webhook-delivery",
