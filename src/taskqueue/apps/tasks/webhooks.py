@@ -5,13 +5,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import time
 import urllib.error
 import urllib.request
 
 from django.utils import timezone
 
-from .models import Task
+from .models import Task, WebhookDelivery
 from .queue_routing import get_queue_for_priority
 
 
@@ -87,15 +86,30 @@ def should_send_event(task: Task, event: str) -> bool:
     return True
 
 
-def enqueue_webhook(task: Task, event: str):
-    """Enqueue webhook delivery in low-priority queue."""
+def enqueue_webhook(task: Task, event: str) -> WebhookDelivery | None:
+    """Create a delivery history record and enqueue webhook delivery."""
     if not should_send_event(task, event):
-        return
+        return None
+
+    payload = build_webhook_payload(task, event)
+    body_bytes = json.dumps(payload).encode("utf-8")
+    headers = prepare_headers(task, event, body_bytes)
+
+    delivery = WebhookDelivery.objects.create(
+        task=task,
+        event=event,
+        request_url=task.callback_url,
+        request_headers=headers,
+        request_body=body_bytes.decode("utf-8", errors="replace"),
+        signature=headers.get("X-Taskqueue-Signature", ""),
+    )
 
     from .webhook_tasks import deliver_webhook  # local import to avoid circular deps
 
     deliver_webhook.apply_async(
-        args=[str(task.id), event],
+        args=[str(delivery.id)],
         queue="low",
         priority=1,
     )
+
+    return delivery
