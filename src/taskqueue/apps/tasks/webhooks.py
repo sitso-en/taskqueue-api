@@ -97,6 +97,7 @@ def enqueue_webhook(task: Task, event: str) -> WebhookDelivery | None:
 
     delivery = WebhookDelivery.objects.create(
         task=task,
+        owner=task.owner,
         event=event,
         request_url=task.callback_url,
         request_headers=headers,

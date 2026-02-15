@@ -188,6 +188,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         replay = WebhookDelivery.objects.create(
             task=task,
+            owner=task.owner,
             event=delivery.event,
             request_url=delivery.request_url,
             request_headers=delivery.request_headers,
