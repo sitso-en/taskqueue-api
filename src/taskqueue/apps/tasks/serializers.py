@@ -18,6 +18,7 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             "id",
+            "owner",
             "name",
             "task_type",
             "payload",
@@ -51,6 +52,7 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "owner",
             "queue",
             "celery_task_id",
             "retry_count",
@@ -200,6 +202,7 @@ class WebhookDeliverySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "task",
+            "owner",
             "event",
             "status",
             "attempts",
