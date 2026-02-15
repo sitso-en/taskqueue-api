@@ -33,8 +33,9 @@ def authenticated_client(api_client, user):
 
 
 @pytest.fixture
-def sample_task():
+def sample_task(user):
     return Task.objects.create(
+        owner=user,
         name="Test Task",
         task_type="echo",
         payload={"message": "Hello"},
@@ -46,10 +47,12 @@ def sample_task():
 class TestTaskAPI:
     """Test cases for Task API endpoints."""
 
-    def test_list_tasks(self, authenticated_client):
+    def test_list_tasks(self, authenticated_client, user):
         """Test listing tasks."""
-        Task.objects.create(name="Task 1", task_type="echo")
-        Task.objects.create(name="Task 2", task_type="compute")
+        Task.objects.create(owner=user, name="Task 1", task_type="echo")
+        Task.objects.create(owner=user, name="Task 2", task_type="compute")
+        other = User.objects.create_user(username="other", email="o@example.com", password="pass12345")
+        Task.objects.create(owner=other, name="Other Task", task_type="echo")
 
         url = reverse("task-list")
         response = authenticated_client.get(url)
@@ -120,11 +123,13 @@ class TestTaskAPI:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_get_stats(self, authenticated_client):
+    def test_get_stats(self, authenticated_client, user):
         """Test getting task statistics."""
-        Task.objects.create(name="T1", task_type="echo", status=TaskStatus.SUCCESS)
-        Task.objects.create(name="T2", task_type="echo", status=TaskStatus.FAILURE)
-        Task.objects.create(name="T3", task_type="echo", status=TaskStatus.PENDING)
+        Task.objects.create(owner=user, name="T1", task_type="echo", status=TaskStatus.SUCCESS)
+        Task.objects.create(owner=user, name="T2", task_type="echo", status=TaskStatus.FAILURE)
+        Task.objects.create(owner=user, name="T3", task_type="echo", status=TaskStatus.PENDING)
+        other = User.objects.create_user(username="other2", email="o2@example.com", password="pass12345")
+        Task.objects.create(owner=other, name="X", task_type="echo", status=TaskStatus.SUCCESS)
 
         url = reverse("task-stats")
         response = authenticated_client.get(url)
@@ -135,10 +140,10 @@ class TestTaskAPI:
         assert response.data["failure"] == 1
         assert response.data["pending"] == 1
 
-    def test_filter_by_status(self, authenticated_client):
+    def test_filter_by_status(self, authenticated_client, user):
         """Test filtering tasks by status."""
-        Task.objects.create(name="T1", task_type="echo", status=TaskStatus.SUCCESS)
-        Task.objects.create(name="T2", task_type="echo", status=TaskStatus.FAILURE)
+        Task.objects.create(owner=user, name="T1", task_type="echo", status=TaskStatus.SUCCESS)
+        Task.objects.create(owner=user, name="T2", task_type="echo", status=TaskStatus.FAILURE)
 
         url = reverse("task-list")
         response = authenticated_client.get(url, {"status": TaskStatus.SUCCESS})
@@ -222,25 +227,25 @@ class TestTaskAPI:
 class TestTaskModel:
     """Test cases for Task model."""
 
-    def test_task_creation(self):
+    def test_task_creation(self, user):
         """Test task is created with correct defaults."""
-        task = Task.objects.create(name="Test", task_type="echo")
+        task = Task.objects.create(owner=user, name="Test", task_type="echo")
 
         assert task.status == TaskStatus.PENDING
         assert task.retry_count == 0
         assert task.max_retries == 3
 
-    def test_mark_started(self):
+    def test_mark_started(self, user):
         """Test marking task as started."""
-        task = Task.objects.create(name="Test", task_type="echo")
+        task = Task.objects.create(owner=user, name="Test", task_type="echo")
         task.mark_started()
 
         assert task.status == TaskStatus.RUNNING
         assert task.started_at is not None
 
-    def test_mark_success(self):
+    def test_mark_success(self, user):
         """Test marking task as successful."""
-        task = Task.objects.create(name="Test", task_type="echo")
+        task = Task.objects.create(owner=user, name="Test", task_type="echo")
         task.mark_started()
         task.mark_success({"result": "done"})
 
@@ -248,9 +253,9 @@ class TestTaskModel:
         assert task.completed_at is not None
         assert task.result == {"result": "done"}
 
-    def test_duration_calculation(self):
+    def test_duration_calculation(self, user):
         """Test duration property."""
-        task = Task.objects.create(name="Test", task_type="echo")
+        task = Task.objects.create(owner=user, name="Test", task_type="echo")
         task.mark_started()
         task.mark_success()
 
