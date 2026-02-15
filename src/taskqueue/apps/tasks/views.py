@@ -256,6 +256,7 @@ class DeadLetterQueueViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Create new task from DLQ entry
         task = Task.objects.create(
+            owner=request.user,
             name=f"[Reprocessed] {dlq_entry.task_name}",
             task_type=dlq_entry.task_type,
             payload=dlq_entry.payload,
