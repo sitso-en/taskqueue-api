@@ -2,6 +2,7 @@
 
 import uuid
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -82,6 +83,16 @@ class Task(models.Model):
     result = models.JSONField(null=True, blank=True)
     error_message = models.TextField(blank=True)
     
+    # Ownership
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
     # Metadata
     tags = models.JSONField(default=list, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -158,6 +169,14 @@ class WebhookDelivery(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="webhook_deliveries")
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="webhook_deliveries",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
     event = models.CharField(max_length=100, db_index=True)
 
     status = models.CharField(
