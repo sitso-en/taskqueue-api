@@ -4,13 +4,18 @@ from unittest.mock import patch
 
 import pytest
 
+from django.contrib.auth import get_user_model
+
 from taskqueue.apps.tasks.models import Task, WebhookDelivery
+
+User = get_user_model()
 from taskqueue.apps.tasks.webhooks import build_webhook_payload, compute_signature, enqueue_webhook
 
 
 @pytest.mark.django_db
 def test_build_webhook_payload_structure():
-    task = Task.objects.create(name="T", task_type="echo", payload={"a": 1})
+    user = User.objects.create_user(username="u", email="u@example.com", password="pass12345")
+    task = Task.objects.create(owner=user, name="T", task_type="echo", payload={"a": 1})
     payload = build_webhook_payload(task, "task.succeeded")
 
     assert payload["event"] == "task.succeeded"
@@ -30,7 +35,9 @@ def test_compute_signature_stable():
 
 @pytest.mark.django_db
 def test_enqueue_webhook_calls_celery_task():
+    user = User.objects.create_user(username="u2", email="u2@example.com", password="pass12345")
     task = Task.objects.create(
+        owner=user,
         name="T",
         task_type="echo",
         callback_url="https://example.com/webhook",
