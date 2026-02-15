@@ -24,6 +24,9 @@ class TaskViewSet(viewsets.ModelViewSet):
     """ViewSet for managing tasks."""
 
     queryset = Task.objects.all()
+
+    def get_queryset(self):
+        return Task.objects.filter(owner=self.request.user)
     serializer_class = TaskSerializer
     filterset_fields = ["status", "task_type", "priority"]
     search_fields = ["name", "tags"]
@@ -202,16 +205,19 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def stats(self, request):
         """Get task statistics."""
+        qs = Task.objects.filter(owner=request.user)
         stats = {
-            "total": Task.objects.count(),
-            "pending": Task.objects.filter(status=TaskStatus.PENDING).count(),
-            "queued": Task.objects.filter(status=TaskStatus.QUEUED).count(),
-            "running": Task.objects.filter(status=TaskStatus.RUNNING).count(),
-            "success": Task.objects.filter(status=TaskStatus.SUCCESS).count(),
-            "failure": Task.objects.filter(status=TaskStatus.FAILURE).count(),
-            "revoked": Task.objects.filter(status=TaskStatus.REVOKED).count(),
-            "dead_letters": DeadLetterQueue.objects.filter(reprocessed=False).count(),
-            "avg_duration": Task.objects.filter(
+            "total": qs.count(),
+            "pending": qs.filter(status=TaskStatus.PENDING).count(),
+            "queued": qs.filter(status=TaskStatus.QUEUED).count(),
+            "running": qs.filter(status=TaskStatus.RUNNING).count(),
+            "success": qs.filter(status=TaskStatus.SUCCESS).count(),
+            "failure": qs.filter(status=TaskStatus.FAILURE).count(),
+            "revoked": qs.filter(status=TaskStatus.REVOKED).count(),
+            "dead_letters": DeadLetterQueue.objects.filter(
+                reprocessed=False, original_task__owner=request.user
+            ).count(),
+            "avg_duration": qs.filter(
                 status=TaskStatus.SUCCESS,
                 started_at__isnull=False,
                 completed_at__isnull=False,
@@ -231,6 +237,9 @@ class DeadLetterQueueViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing dead letter queue."""
 
     queryset = DeadLetterQueue.objects.all()
+
+    def get_queryset(self):
+        return DeadLetterQueue.objects.filter(original_task__owner=self.request.user)
     serializer_class = DeadLetterQueueSerializer
     filterset_fields = ["task_type", "reprocessed"]
 
