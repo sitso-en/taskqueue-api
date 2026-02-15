@@ -40,7 +40,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         """Create and queue a new task."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        task = serializer.save()
+        task = serializer.save(owner=request.user)
 
         # Queue task for execution
         task.status = TaskStatus.QUEUED
