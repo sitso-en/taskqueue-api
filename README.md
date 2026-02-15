@@ -7,6 +7,7 @@ A production-grade distributed task queue system built with Django REST Framewor
 ## Features
 
 - **JWT Authentication** - Secure API access with token-based auth
+- **Per-user Isolation** - API only returns tasks owned by the authenticated user
 - **Async Task Processing** - Celery + Redis for reliable background job execution
 - **Real-time Updates** - WebSocket support for live task status
 - **Rate Limiting** - Built-in request throttling
