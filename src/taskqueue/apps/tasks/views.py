@@ -1,5 +1,6 @@
 """Task API views."""
 
+from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, F
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -53,7 +54,15 @@ class TaskViewSet(viewsets.ModelViewSet):
             if existing:
                 return Response(TaskSerializer(existing).data, status=status.HTTP_200_OK)
 
-        task = serializer.save(owner=request.user, idempotency_key=idempotency_key)
+        try:
+            with transaction.atomic():
+                task = serializer.save(owner=request.user, idempotency_key=idempotency_key)
+        except IntegrityError:
+            if idempotency_key:
+                existing = Task.objects.filter(owner=request.user, idempotency_key=idempotency_key).first()
+                if existing:
+                    return Response(TaskSerializer(existing).data, status=status.HTTP_200_OK)
+            raise
 
         # Queue task for execution
         task.status = TaskStatus.QUEUED
