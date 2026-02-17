@@ -17,9 +17,12 @@ RUN pip install --no-cache-dir -r requirements/prod.txt
 
 # Copy application
 COPY src/ src/
+COPY bin/ bin/
 
 WORKDIR /app/src
 
 EXPOSE 8000
 
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "taskqueue.asgi:application"]
+RUN chmod +x /app/bin/start-web.sh
+
+CMD ["/app/bin/start-web.sh"]
