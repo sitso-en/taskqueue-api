@@ -76,28 +76,36 @@ ASGI_APPLICATION = "taskqueue.asgi.application"
 
 
 # Database
-DB_ENGINE = config("DB_ENGINE", default="")
-if not DB_ENGINE:
-    DB_ENGINE = "postgres" if (os.environ.get("DB_NAME") or os.environ.get("DB_HOST")) else "sqlite"
+DATABASE_URL = config("DATABASE_URL", default="")
+if DATABASE_URL:
+    import dj_database_url
 
-if DB_ENGINE == "sqlite":
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
+        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600),
     }
 else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": config("DB_NAME", default="taskqueue"),
-            "USER": config("DB_USER", default="taskqueue"),
-            "PASSWORD": config("DB_PASSWORD", default="taskqueue"),
-            "HOST": config("DB_HOST", default="localhost"),
-            "PORT": config("DB_PORT", default="5432"),
+    DB_ENGINE = config("DB_ENGINE", default="")
+    if not DB_ENGINE:
+        DB_ENGINE = "postgres" if (os.environ.get("DB_NAME") or os.environ.get("DB_HOST")) else "sqlite"
+
+    if DB_ENGINE == "sqlite":
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "db.sqlite3",
+            }
         }
-    }
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": config("DB_NAME", default="taskqueue"),
+                "USER": config("DB_USER", default="taskqueue"),
+                "PASSWORD": config("DB_PASSWORD", default="taskqueue"),
+                "HOST": config("DB_HOST", default="localhost"),
+                "PORT": config("DB_PORT", default="5432"),
+            }
+        }
 
 
 # Password validation
