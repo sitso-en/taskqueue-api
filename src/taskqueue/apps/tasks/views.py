@@ -43,7 +43,17 @@ class TaskViewSet(viewsets.ModelViewSet):
         """Create and queue a new task."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        task = serializer.save(owner=request.user)
+
+        idempotency_key = request.headers.get("Idempotency-Key")
+        if not idempotency_key:
+            idempotency_key = serializer.validated_data.get("idempotency_key")
+
+        if idempotency_key:
+            existing = Task.objects.filter(owner=request.user, idempotency_key=idempotency_key).first()
+            if existing:
+                return Response(TaskSerializer(existing).data, status=status.HTTP_200_OK)
+
+        task = serializer.save(owner=request.user, idempotency_key=idempotency_key)
 
         # Queue task for execution
         task.status = TaskStatus.QUEUED
