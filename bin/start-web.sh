@@ -19,5 +19,5 @@ done
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "Starting daphne on port ${PORT:-8000}..."
-daphne -b 0.0.0.0 -p "${PORT:-8000}" taskqueue.asgi:application
+echo "Starting daphne on port ${PORT:-8080}..."
+daphne -b 0.0.0.0 -p "${PORT:-8080}" taskqueue.asgi:application

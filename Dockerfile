@@ -21,7 +21,7 @@ COPY bin/ bin/
 
 WORKDIR /app/src
 
-EXPOSE 8000
+EXPOSE 8080
 
 RUN chmod +x /app/bin/start-web.sh
 
