@@ -274,6 +274,11 @@ taskqueue-api/
 └── tests/
 ```
 
+## API Docs
+
+- OpenAPI schema: `GET /api/schema/`
+- Swagger UI: `GET /api/docs/`
+
 ## Running Tests
 
 ```bash
