@@ -4,6 +4,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -93,6 +94,9 @@ class Task(models.Model):
         db_index=True,
     )
 
+    # Idempotency
+    idempotency_key = models.CharField(max_length=128, blank=True, null=True, db_index=True)
+
     # Metadata
     tags = models.JSONField(default=list, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -125,6 +129,13 @@ class Task(models.Model):
             models.Index(fields=["status", "created_at"]),
             models.Index(fields=["task_type", "status"]),
             models.Index(fields=["priority", "status", "created_at"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "idempotency_key"],
+                condition=Q(idempotency_key__isnull=False),
+                name="uniq_task_owner_idempotency_key",
+            )
         ]
 
     def __str__(self):
