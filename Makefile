@@ -1,4 +1,4 @@
-.PHONY: help install dev run migrate shell test lint format clean docker-up docker-down celery
+.PHONY: help install dev run migrate shell test schema lint format clean docker-up docker-down celery
 
 help:
 	@echo "Available commands:"
@@ -38,6 +38,9 @@ createsuperuser:
 
 test:
 	cd src && pytest ../tests --cov=taskqueue --cov-report=term-missing
+
+schema:
+	cd src && python manage.py spectacular --file ../docs/openapi.yaml
 
 lint:
 	ruff check src/
