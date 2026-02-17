@@ -291,6 +291,20 @@ taskqueue-api/
 - OpenAPI schema: `GET /api/schema/`
 - Swagger UI: `GET /api/docs/`
 
+## Deploy (Railway)
+
+This repo can be deployed to Railway using the included `Dockerfile`.
+
+Railway env vars to set:
+- `DJANGO_ENV=production`
+- `SECRET_KEY=<strong-random-secret>`
+- `ALLOWED_HOSTS=<your-railway-domain>`
+- `DATABASE_URL=<railway postgres url>`
+- `REDIS_URL=<railway redis url>`
+- `CELERY_BROKER_URL=<railway redis url>`
+
+Web service will run migrations + collectstatic automatically on boot.
+
 ## Running Tests
 
 ```bash
