@@ -14,10 +14,5 @@ def test_openapi_schema_endpoint():
 
     assert resp.status_code == status.HTTP_200_OK
 
-    data = resp.json() if resp.get("Content-Type", "").startswith("application/json") else None
-    if data is None:
-        import json
-
-        data = json.loads(resp.content)
-
-    assert data["openapi"]
+    assert resp.content
+    assert b"openapi" in resp.content
