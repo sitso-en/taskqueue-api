@@ -2,10 +2,11 @@
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from taskqueue.apps.tasks.models import Task, TaskStatus, WebhookDelivery
 
@@ -77,6 +78,134 @@ class TestTaskAPI:
         assert response.data["name"] == "New Task"
         assert response.data["status"] == TaskStatus.QUEUED
         assert "queue" in response.data
+
+    def test_create_task_idempotency_key_header(self, authenticated_client):
+        url = reverse("task-list")
+        data = {
+            "name": "New Task",
+            "task_type": "echo",
+            "payload": {"test": "data"},
+        }
+
+        with patch("taskqueue.apps.tasks.views.execute_task.apply_async") as apply_async:
+            r1 = authenticated_client.post(
+                url,
+                data,
+                format="json",
+                headers={"Idempotency-Key": "abc"},
+            )
+            r2 = authenticated_client.post(
+                url,
+                data,
+                format="json",
+                headers={"Idempotency-Key": "abc"},
+            )
+
+        assert r1.status_code == status.HTTP_201_CREATED
+        assert r2.status_code == status.HTTP_200_OK
+        assert r1.data["id"] == r2.data["id"]
+        assert apply_async.call_count == 1
+
+    def test_create_task_idempotency_key_body(self, authenticated_client):
+        url = reverse("task-list")
+        data = {
+            "name": "New Task",
+            "task_type": "echo",
+            "payload": {"test": "data"},
+            "idempotency_key": "body-key",
+        }
+
+        with patch("taskqueue.apps.tasks.views.execute_task.apply_async") as apply_async:
+            r1 = authenticated_client.post(url, data, format="json")
+            r2 = authenticated_client.post(url, data, format="json")
+
+        assert r1.status_code == status.HTTP_201_CREATED
+        assert r2.status_code == status.HTTP_200_OK
+        assert r1.data["id"] == r2.data["id"]
+        assert apply_async.call_count == 1
+
+    def test_idempotency_key_header_takes_precedence(self, authenticated_client):
+        url = reverse("task-list")
+        data = {
+            "name": "New Task",
+            "task_type": "echo",
+            "payload": {"test": "data"},
+            "idempotency_key": "body-key",
+        }
+
+        with patch("taskqueue.apps.tasks.views.execute_task.apply_async"):
+            resp = authenticated_client.post(
+                url,
+                data,
+                format="json",
+                headers={"Idempotency-Key": "header-key"},
+            )
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        task = Task.objects.get(id=resp.data["id"])
+        assert task.idempotency_key == "header-key"
+
+    def test_idempotency_key_scoped_to_owner(self, api_client):
+        url = reverse("task-list")
+        data = {
+            "name": "New Task",
+            "task_type": "echo",
+            "payload": {"test": "data"},
+        }
+
+        user1 = User.objects.create_user(username="u1", email="u1@example.com", password="pass12345")
+        user2 = User.objects.create_user(username="u2", email="u2@example.com", password="pass12345")
+
+        c1 = APIClient()
+        c1.force_authenticate(user=user1)
+        c2 = APIClient()
+        c2.force_authenticate(user=user2)
+
+        with patch("taskqueue.apps.tasks.views.execute_task.apply_async"):
+            r1 = c1.post(url, data, format="json", headers={"Idempotency-Key": "same"})
+            r2 = c2.post(url, data, format="json", headers={"Idempotency-Key": "same"})
+
+        assert r1.status_code == status.HTTP_201_CREATED
+        assert r2.status_code == status.HTTP_201_CREATED
+        assert r1.data["id"] != r2.data["id"]
+
+    def test_idempotency_integrityerror_returns_existing(self, authenticated_client, user):
+        url = reverse("task-list")
+        existing = Task.objects.create(
+            owner=user,
+            name="Existing",
+            task_type="echo",
+            payload={"test": "data"},
+            idempotency_key="race",
+            status=TaskStatus.QUEUED,
+        )
+
+        data = {
+            "name": "New Task",
+            "task_type": "echo",
+            "payload": {"test": "data"},
+        }
+
+        qs1 = MagicMock()
+        qs1.first.return_value = None
+        qs2 = MagicMock()
+        qs2.first.return_value = existing
+
+        with (
+            patch("taskqueue.apps.tasks.views.Task.objects.filter", side_effect=[qs1, qs2]),
+            patch("taskqueue.apps.tasks.views.TaskCreateSerializer.save", side_effect=IntegrityError),
+            patch("taskqueue.apps.tasks.views.execute_task.apply_async") as apply_async,
+        ):
+            resp = authenticated_client.post(
+                url,
+                data,
+                format="json",
+                headers={"Idempotency-Key": "race"},
+            )
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data["id"] == str(existing.id)
+        apply_async.assert_not_called()
 
     def test_create_task_invalid_type(self, authenticated_client):
         """Test creating task with invalid type fails."""
