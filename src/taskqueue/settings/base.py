@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "django_prometheus",
+    "drf_spectacular",
     # Local apps
     "taskqueue.apps.core",
     "taskqueue.apps.tasks",
@@ -124,6 +125,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST Framework
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -146,6 +148,12 @@ REST_FRAMEWORK = {
         "anon": "100/hour",
         "user": "1000/hour",
     },
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "TaskQueue API",
+    "DESCRIPTION": "Distributed task queue API (Django + DRF + Celery).",
+    "VERSION": "1.0.0",
 }
 
 
