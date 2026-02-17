@@ -22,6 +22,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "name",
             "task_type",
             "payload",
+            "idempotency_key",
             "status",
             "status_display",
             "priority",
@@ -53,6 +54,7 @@ class TaskSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "owner",
+            "idempotency_key",
             "queue",
             "celery_task_id",
             "retry_count",
@@ -82,12 +84,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating tasks."""
 
     callback_secret = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    idempotency_key = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Task
         fields = [
             "name",
             "task_type",
+            "idempotency_key",
             "payload",
             "priority",
             "max_retries",
@@ -118,6 +122,15 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 f"Invalid task type. Must be one of: {', '.join(valid_types)}"
             )
+        return value
+
+    def validate_idempotency_key(self, value):
+        if value in (None, ""):
+            return None
+        if not isinstance(value, str):
+            raise serializers.ValidationError("idempotency_key must be a string")
+        if len(value) > 128:
+            raise serializers.ValidationError("idempotency_key too long")
         return value
 
     def validate_callback_headers(self, value):
