@@ -233,6 +233,18 @@ curl -X POST http://localhost:8000/api/v1/tasks/ \
   }'
 ```
 
+### Idempotency keys (recommended for safe retries)
+
+If a client retries a request (timeouts, flaky networks), you can avoid creating duplicate tasks by providing an idempotency key.
+
+- Preferred: `Idempotency-Key: <string>` header
+- Alternative: `idempotency_key` field in the JSON body
+- Precedence: header wins over body when both are present
+
+Behavior:
+- First request with a new key creates a task (HTTP **201**)
+- Repeating the same request with the same key returns the existing task (HTTP **200**)
+
 ### Check Task Status
 
 ```bash
