@@ -3,11 +3,18 @@ URL configuration for taskqueue project.
 """
 
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.permissions import AllowAny
 
+
+def healthcheck(_request):
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
+    path("", healthcheck, name="healthcheck"),
     path("admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(permission_classes=[AllowAny]), name="schema"),
     path(
