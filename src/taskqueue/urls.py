@@ -15,6 +15,8 @@ def healthcheck(_request):
 
 urlpatterns = [
     path("", healthcheck, name="healthcheck"),
+    path("health", healthcheck, name="healthcheck-no-slash"),
+    path("health/", healthcheck, name="healthcheck-slash"),
     path("admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(permission_classes=[AllowAny]), name="schema"),
     path(
