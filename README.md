@@ -305,6 +305,11 @@ Railway env vars to set:
 
 Web service will run migrations + collectstatic automatically on boot.
 
+Railway troubleshooting (common gotchas):
+- Healthcheck path: set to `/health`
+- If healthcheck returns `301`, ensure `SECURE_SSL_REDIRECT=false` (the code defaults this to false in production)
+- If your domain shows `Port 8000` and you can’t change Target Port, set `PORT=8000` on the web service so Daphne listens on 8000
+
 ## Running Tests
 
 ```bash
