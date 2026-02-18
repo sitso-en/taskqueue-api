@@ -11,7 +11,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = config("SECRET_KEY", default="test-secret-key-please-change-32bytes!!")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
+ALLOWED_HOSTS = list(config("ALLOWED_HOSTS", default="", cast=Csv()))
+# Railway healthchecks use this hostname; allow it so deploys can go live.
+if "healthcheck.railway.app" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("healthcheck.railway.app")
 
 
 # Application definition
