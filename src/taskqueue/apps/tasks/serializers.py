@@ -7,8 +7,6 @@ from .queue_routing import get_queue_for_priority
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    """Serializer for Task model."""
-
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     priority_display = serializers.CharField(source="get_priority_display", read_only=True)
     duration = serializers.FloatField(read_only=True)
